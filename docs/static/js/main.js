@@ -53,13 +53,31 @@ async function fetchJsonWithFallback(path, fallback){
 
 async function loadLocalData(){
   if(PRODUCTS_CACHE && PROMOS_CACHE) return;
-  // Try to fetch JSON, fallback to embedded data if file://
-  const p = await fetchJsonWithFallback('data/products.json', FALLBACK_PRODUCTS);
-  const s = await fetchJsonWithFallback('data/sales.json', FALLBACK_SALES);
-  const pr = await fetchJsonWithFallback('data/promos.json', FALLBACK_PROMOS);
-  PRODUCTS_CACHE = Array.isArray(p) ? p : FALLBACK_PRODUCTS;
-  SALES_CACHE = Array.isArray(s) ? s : FALLBACK_SALES;
-  PROMOS_CACHE = Array.isArray(pr) ? pr : FALLBACK_PROMOS;
+  // 1) Если в localStorage есть данные — используем их, иначе грузим из data/*.json
+  let localProducts = null;
+  let localSales = null;
+  let localPromos = null;
+  try{ localProducts = JSON.parse(localStorage.getItem('galamart_static_products')||'null'); }catch(e){}
+  try{ localSales = JSON.parse(localStorage.getItem('galamart_static_sales')||'null'); }catch(e){}
+  try{ localPromos = JSON.parse(localStorage.getItem('galamart_static_promos')||'null'); }catch(e){}
+  if(localProducts && Array.isArray(localProducts) && localProducts.length){
+    PRODUCTS_CACHE = localProducts;
+  } else {
+    const p = await fetchJsonWithFallback('data/products.json', FALLBACK_PRODUCTS);
+    PRODUCTS_CACHE = Array.isArray(p) ? p : FALLBACK_PRODUCTS;
+  }
+  if(localSales && Array.isArray(localSales) && localSales.length){
+    SALES_CACHE = localSales;
+  } else {
+    const s = await fetchJsonWithFallback('data/sales.json', FALLBACK_SALES);
+    SALES_CACHE = Array.isArray(s) ? s : FALLBACK_SALES;
+  }
+  if(localPromos && Array.isArray(localPromos) && localPromos.length){
+    PROMOS_CACHE = localPromos;
+  } else {
+    const pr = await fetchJsonWithFallback('data/promos.json', FALLBACK_PROMOS);
+    PROMOS_CACHE = Array.isArray(pr) ? pr : FALLBACK_PROMOS;
+  }
   // Enrich products with is_active if missing, ensure stock/price numbers
   PRODUCTS_CACHE = PRODUCTS_CACHE.map((x,i)=>{
     return {
@@ -84,6 +102,36 @@ async function loadLocalData(){
     };
   });
 }
+
+// Сохранение в localStorage при изменениях
+function persistProducts(){
+  try{ localStorage.setItem('galamart_static_products', JSON.stringify(PRODUCTS_CACHE)); }catch(e){ console.warn('persistProducts failed', e); }
+}
+function persistPromos(){
+  try{ localStorage.setItem('galamart_static_promos', JSON.stringify(PROMOS_CACHE)); }catch(e){}
+}
+function persistSales(){
+  try{ localStorage.setItem('galamart_static_sales', JSON.stringify(SALES_CACHE)); }catch(e){}
+}
+
+// Сброс данных к исходным из JSON
+function resetLocalData(){
+  if(!confirm('Сбросить все данные к исходным из data/*.json? Это очистит товары, заказы, задачи и план из localStorage.')) return;
+  try{
+    localStorage.removeItem('galamart_static_products');
+    localStorage.removeItem('galamart_static_sales');
+    localStorage.removeItem('galamart_static_promos');
+    localStorage.removeItem('galamart_static_orders');
+    localStorage.removeItem('galamart_static_next_id');
+    localStorage.removeItem('galamart_tasks');
+    localStorage.removeItem('galamart_tasks_date');
+    localStorage.removeItem('galamart_static_plan');
+    localStorage.removeItem('galamart_static_plan');
+  }catch(e){}
+  // Перезагрузить страницу — loadLocalData снова загрузит из JSON
+  location.reload();
+}
+window.resetLocalData = resetLocalData;
 
 // Ensure data loaded before any api call
 let dataLoadPromise = loadLocalData();

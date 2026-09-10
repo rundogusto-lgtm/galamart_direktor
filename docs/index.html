@@ -90,13 +90,11 @@
     <button class="btn btn-ghost" id="themeToggle" onclick="toggleTheme()" aria-label="Переключить тему" title="Тёмная тема"><i class="ph ph-moon" aria-hidden="true"></i></button>
     <button class="btn btn-ghost" onclick="location.reload()" aria-label="Обновить страницу"><i class="ph ph-arrows-clockwise" aria-hidden="true"></i> Обновить</button>
     <button class="btn btn-orange" onclick="exportSalesPDF()" aria-label="Экспорт PDF"><i class="ph ph-file-pdf" aria-hidden="true"></i> PDF</button>
+    <button class="btn btn-ghost" onclick="resetLocalData()" aria-label="Сбросить данные" title="Сбросить данные к исходным из JSON"><i class="ph ph-arrow-counter-clockwise" aria-hidden="true"></i> Сброс</button>
     <button class="btn btn-ghost" onclick="logout()" aria-label="Выйти" title="Выйти"><i class="ph ph-sign-out" aria-hidden="true"></i></button>
   </div>
 </header>
-<!-- GitHub Pages Static Demo — демо-режим: данные из JSON, без сервера -->
-<div style="background:#FFF7ED;border:1px solid #FDBA74;color:#9A3412;padding:10px 16px;text-align:center;font-weight:700;display:flex;align-items:center;justify-content:center;gap:8px;">
-  <i class="ph ph-info" aria-hidden="true"></i> Демо-режим GitHub Pages — данные загружаются из <code>data/products.json</code>, изменения не сохраняются на сервере
-</div>
+
 
 
 <!-- Orange Galamart Store Banner -->
@@ -489,6 +487,17 @@
       <div style="width:40px;height:40px;background:#FF6B00;border-radius:10px;display:flex;align-items:center;justify-content:center;color:white;"><i class="ph ph-envelope" style="font-size:20px;"></i></div>
       <div><div style="font-size:11px;font-weight:800;color:var(--text-muted);text-transform:uppercase;">Почта</div><div style="font-family:Rubik,sans-serif;font-weight:700;font-size:15px;"><a href="mailto:support@galamart.ru" style="color:var(--text-strong);text-decoration:none;">support@galamart.ru</a></div><div class="small muted">Ответ за 15 минут</div></div>
     </div>
+  </div>
+</div>
+
+<!-- Локальное хранение — сброс к исходным -->
+<div class="card" style="margin:12px auto 0;max-width:1400px; background:#FFFBEB; border-style:dashed;">
+  <div class="flex-between">
+    <div>
+      <div class="card-title"><i class="ph ph-database" aria-hidden="true"></i> Локальные данные</div>
+      <div class="small muted" style="margin-top:4px;">Все изменения (товары, заказы, задачи, план) сохраняются в браузере (localStorage) и восстанавливаются при перезагрузке. Источник по умолчанию — <code>data/*.json</code>.</div>
+    </div>
+    <button class="btn btn-ghost" onclick="resetLocalData()"><i class="ph ph-arrow-counter-clockwise" aria-hidden="true"></i> Сбросить к исходным</button>
   </div>
 </div>
 
