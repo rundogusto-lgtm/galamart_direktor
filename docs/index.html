@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GALAMART — Order Assistant</title>
+<link rel="stylesheet" href="static/css/style.css">
+<!-- Galamart orange-white | Rubik + Nunito Sans -->
+<script src="https://unpkg.com/@phosphor-icons/web"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+</head>
+<body>
+<!-- Login Overlay -->
+<div id="loginOverlay" style="position:fixed;inset:0;z-index:999;background: linear-gradient(135deg, #FFF7ED 0%, #FFEDD5 100%);display:flex;align-items:center;justify-content:center;padding:20px;">
+  <div style="background:white;border:1px solid #FFE4CC;border-radius:20px;box-shadow:0 20px 40px rgba(15,23,42,0.12);padding:32px;max-width:380px;width:100%;">
+    <div style="text-align:center;margin-bottom:20px;">
+      <div style="width:56px;height:56px;background:#FF6B00;border-radius:14px;display:flex;align-items:center;justify-content:center;color:white;margin:0 auto 12px;"><i class="ph ph-storefront" style="font-size:26px;"></i></div>
+      <div style="font-family:Rubik,sans-serif;font-weight:700;font-size:18px;">Вход — Галамарт</div>
+      <div class="small muted" style="margin-top:4px;">Кабинет директора</div>
+    </div>
+    <form id="loginForm" onsubmit="event.preventDefault(); window.doLogin && window.doLogin();" autocomplete="on">
+      <div class="form-group"><label><i class="ph ph-user" aria-hidden="true"></i> Логин</label><input id="loginUser" class="form-control" placeholder="gDir" autocomplete="username" required></div>
+      <div class="form-group" style="margin-top:12px;"><label><i class="ph ph-lock" aria-hidden="true"></i> Пароль</label><input id="loginPass" class="form-control" type="password" placeholder="••••" autocomplete="current-password" required></div>
+      <div id="loginError" class="small" style="color:#DC2626;font-weight:700;margin-top:8px;display:none;"><i class="ph ph-warning" aria-hidden="true"></i> Неверный логин или пароль</div>
+      <button id="loginBtn" type="submit" class="btn btn-orange w-full" style="margin-top:16px;justify-content:center;padding:12px;"><i class="ph ph-sign-in" aria-hidden="true"></i> Войти</button>
+      <button id="guestBtn" type="button" class="btn btn-ghost w-full" style="margin-top:8px;justify-content:center;" onclick="try{localStorage.setItem('galamart_auth','1');}catch(e){} document.getElementById('loginOverlay').style.display='none';"><i class="ph ph-rocket" aria-hidden="true"></i> Войти как гость (демо)</button>
+    </form>
+    <div style="text-align:center;margin-top:12px;display:flex;gap:12px;justify-content:center;"><a href="#" onclick="event.preventDefault();document.getElementById('supportHint').style.display='block';" class="small" style="color:var(--accent);font-weight:700;">Забыли пароль?</a><a href="#" onclick="event.preventDefault(); try{localStorage.setItem('galamart_auth','1');}catch(e){} document.getElementById('loginOverlay').style.display='none';" class="small" style="color:var(--text-muted);font-weight:600;">Пропустить →</a></div>
+    <div id="supportHint" style="display:none;margin-top:12px;padding:12px;background:#FFF7ED;border:1px solid #FDBA74;border-radius:10px;">
+      <div style="font-weight:700;display:flex;align-items:center;gap:6px;"><i class="ph ph-headset" style="color:#FF6B00;"></i> Техподдержка Галамарт</div>
+      <div class="small" style="margin-top:6px;display:flex;align-items:center;gap:6px;"><i class="ph ph-phone" aria-hidden="true"></i> <a href="tel:+78005551488" style="font-weight:700;">8 800 555-14-88</a> (круглосуточно)</div>
+      <div class="small" style="display:flex;align-items:center;gap:6px;"><i class="ph ph-envelope" aria-hidden="true"></i> <a href="mailto:support@galamart.ru" style="font-weight:700;">support@galamart.ru</a></div>
+    </div>
+  </div>
+</div>
+<!-- Fallback login script — работает даже если main.js упал (синтаксис, CSP) -->
+<script>
+(function(){
+  function hideOverlay(){ var o=document.getElementById('loginOverlay'); if(o) o.style.display='none'; }
+  function showOverlay(){ var o=document.getElementById('loginOverlay'); if(o) o.style.display='flex'; }
+  function isAuthed(){ try{ return localStorage.getItem('galamart_auth')==='1'; }catch(e){ return true; } }
+  window.doLogin = function(){
+    var uEl=document.getElementById('loginUser');
+    var pEl=document.getElementById('loginPass');
+    var err=document.getElementById('loginError');
+    var u=(uEl?uEl.value:'').trim().toLowerCase();
+    var p=(pEl?pEl.value:'').trim();
+    if((u==='gdir') && p==='1234'){
+      try{ localStorage.setItem('galamart_auth','1'); }catch(e){}
+      if(err) err.style.display='none';
+      hideOverlay();
+      return true;
+    } else {
+      if(err){ err.style.display='block'; err.innerHTML='<i class="ph ph-warning"></i> Неверный логин или пароль. Подсказка: <b>gDir</b> / <b>1234</b> или нажмите «Войти как гость»'; }
+      var h=document.getElementById('supportHint'); if(h) h.style.display='block';
+      return false;
+    }
+  };
+  window.checkAuth = function(){ if(isAuthed()) hideOverlay(); else showOverlay(); };
+  window.logout = function(){ try{ localStorage.removeItem('galamart_auth'); }catch(e){} showOverlay(); };
+  // авто-демо / reset
+  try{
+    var qs=new URLSearchParams(window.location.search);
+    if(qs.get('demo')==='1' || qs.get('login')==='auto'){ try{localStorage.setItem('galamart_auth','1');}catch(e){} hideOverlay(); return; }
+    if(qs.get('reset')==='1'){ try{localStorage.removeItem('galamart_auth');}catch(e){} showOverlay(); return; }
+  }catch(e){}
+  // показать/скрыть при загрузке
+  if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded', window.checkAuth); } else { window.checkAuth(); }
+  setTimeout(window.checkAuth, 150);
+  // Enter
+  document.addEventListener('keydown', function(e){
+    var o=document.getElementById('loginOverlay');
+    if(e.key==='Enter' && o && o.style.display!=='none'){
+      var ae=document.activeElement;
+      if(ae && (ae.id==='loginUser' || ae.id==='loginPass')){ e.preventDefault(); window.doLogin(); }
+    }
+    if(e.key==='Escape'){ var ov=document.getElementById('loginOverlay'); if(ov && ov.style.display!=='none'){ try{localStorage.setItem('galamart_auth','1');}catch(e){} hideOverlay(); } }
+  });
+})();
+</script>
+<header class="app-header">
+  <div class="logo">
+    <div class="logo-icon" aria-hidden="true"><i class="ph ph-storefront"></i></div>
+    <div class="logo-text"><b>GALAMART</b><span>Order Assistant</span></div>
+    <span class="logo-sub">Магазин постоянных распродаж</span>
+  </div>
+  <div class="header-right">
+    <span class="time-badge" id="headerTime"><i class="ph ph-clock" aria-hidden="true"></i> <span>—</span></span>
+    <button class="btn btn-ghost" id="themeToggle" onclick="toggleTheme()" aria-label="Переключить тему" title="Тёмная тема"><i class="ph ph-moon" aria-hidden="true"></i></button>
+    <button class="btn btn-ghost" onclick="location.reload()" aria-label="Обновить страницу"><i class="ph ph-arrows-clockwise" aria-hidden="true"></i> Обновить</button>
+    <button class="btn btn-orange" onclick="exportSalesPDF()" aria-label="Экспорт PDF"><i class="ph ph-file-pdf" aria-hidden="true"></i> PDF</button>
+    <button class="btn btn-ghost" onclick="logout()" aria-label="Выйти" title="Выйти"><i class="ph ph-sign-out" aria-hidden="true"></i></button>
+  </div>
+</header>
+<!-- GitHub Pages Static Demo — демо-режим: данные из JSON, без сервера -->
+<div style="background:#FFF7ED;border:1px solid #FDBA74;color:#9A3412;padding:10px 16px;text-align:center;font-weight:700;display:flex;align-items:center;justify-content:center;gap:8px;">
+  <i class="ph ph-info" aria-hidden="true"></i> Демо-режим GitHub Pages — данные загружаются из <code>data/products.json</code>, изменения не сохраняются на сервере
+</div>
+
+
+<!-- Orange Galamart Store Banner -->
+<div style="background: linear-gradient(135deg, #FF6B00 0%, #FF8C42 100%); color:white; padding:16px 24px; display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;">
+  <div style="display:flex; align-items:center; gap:12px;">
+    <div style="width:40px;height:40px;background:rgba(255,255,255,0.2);border-radius:10px;display:flex;align-items:center;justify-content:center;"><i class="ph ph-shopping-bag" style="font-size:20px;"></i></div>
+    <div>
+      <div style="font-family:'Rubik',sans-serif;font-weight:700;font-size:15px;line-height:1;">ГАЛАМАРТ — товары для дома, кухни, праздника</div>
+      <div style="font-size:12px;opacity:0.9;margin-top:2px;">Хозтовары • Посуда • Текстиль • Игрушки • Канцтовары • Бытовая химия</div>
+    </div>
+  </div>
+  <div style="display:flex; gap:8px; flex-wrap:wrap;">
+    <span class="pill-category" style="background:rgba(255,255,255,0.9);color:#9A3412;border-color:white;"><i class="ph ph-package" aria-hidden="true"></i> <span id="bannerCount">68 товаров</span></span>
+    <span class="pill-category" style="background:rgba(255,255,255,0.9);color:#9A3412;border-color:white;"><i class="ph ph-truck" aria-hidden="true"></i> Свежие поставки</span>
+    <span class="pill-category" style="background:rgba(255,255,255,0.9);color:#9A3412;border-color:white;"><i class="ph ph-percent" aria-hidden="true"></i> Распродажи</span>
+  </div>
+</div>
+
+<nav class="tabs-bar" role="tablist" aria-label="Разделы">
+  <button class="tab-btn active" data-tab="analytics" role="tab" aria-selected="true"><i class="ph ph-chart-bar" aria-hidden="true"></i> Аналитика</button>
+  <button class="tab-btn" data-tab="director" role="tab" aria-selected="false"><i class="ph ph-user-gear" aria-hidden="true"></i> Кабинет</button>
+  <button class="tab-btn" data-tab="order" role="tab" aria-selected="false"><i class="ph ph-shopping-cart" aria-hidden="true"></i> Заказ</button>
+  <button class="tab-btn" data-tab="promo" role="tab" aria-selected="false"><i class="ph ph-megaphone" aria-hidden="true"></i> Листовки</button>
+  <button class="tab-btn" data-tab="products" role="tab" aria-selected="false"><i class="ph ph-package" aria-hidden="true"></i> Товары</button>
+  <button class="tab-btn" data-tab="history" role="tab" aria-selected="false"><i class="ph ph-clock-counter-clockwise" aria-hidden="true"></i> История</button>
+</nav>
+
+<!-- ANALYTICS -->
+<section id="tab-analytics" class="tab-pane active" role="tabpanel">
+  <div class="kpi-grid" id="kpiGrid">
+    <div class="kpi-card" data-kpi="revenue" style="cursor:help;"><div class="kpi-label"><i class="ph ph-currency-rub" aria-hidden="true"></i> Выручка · Август 2026 <i class="ph ph-info" style="color:var(--text-dim);margin-left:4px;cursor:help;" title="Выручка — сумма всех продаж за 4 недели: цена × количество. Считается как Σ(price × total)"></i></div><div class="kpi-value" id="kpiRevenue">—</div><div class="kpi-delta up" id="kpiRevenueDelta"><i class="ph ph-trend-up" aria-hidden="true"></i> —</div></div>
+    <div class="kpi-card" data-kpi="orders" style="cursor:help;"><div class="kpi-label"><i class="ph ph-shopping-bag" aria-hidden="true"></i> Заказов (шт. продано) <i class="ph ph-info" style="color:var(--text-dim);margin-left:4px;cursor:help;" title="Количество проданных штук за 4 недели (Σ week1..4). Не путать с заказами поставщику"></i></div><div class="kpi-value" id="kpiOrders">—</div><div class="kpi-delta up" id="kpiOrdersDelta">—</div></div>
+    <div class="kpi-card" data-kpi="avg" style="cursor:help;"><div class="kpi-label"><i class="ph ph-receipt" aria-hidden="true"></i> Средний чек <i class="ph ph-info" style="color:var(--text-dim);margin-left:4px;cursor:help;" title="Средний чек = Общая выручка / Количество чеков. Единая формула: total_revenue / total_items"></i></div><div class="kpi-value" id="kpiAvg">—</div><div class="kpi-delta down" id="kpiAvgDelta"><i class="ph ph-trend-down" aria-hidden="true"></i> -2.1%</div></div>
+    <div class="kpi-card" data-kpi="deficit" style="cursor:help;"><div class="kpi-label"><i class="ph ph-warning-circle" aria-hidden="true"></i> Дефицит, SKU <i class="ph ph-info" style="color:var(--text-dim);margin-left:4px;cursor:help;" title="Дефицит — количество SKU в Красной зоне (остаток ≤5 или покрытие <7 дней или >30 дней без продаж)"></i></div><div class="kpi-value" id="kpiDeficit">—</div><div class="kpi-delta up" id="kpiDeficitDelta">—</div></div>
+  </div>
+  <div id="kpiTooltip" style="position:fixed;display:none;z-index:150;background:white;border:1px solid #FFE4CC;border-radius:12px;box-shadow:0 12px 24px rgba(15,23,42,0.15);padding:14px;min-width:260px;max-width:320px;pointer-events:none;"></div>
+
+  <div class="grid-2" style="margin-top:16px;">
+    <div class="card">
+      <div class="card-header"><div><div class="card-title"><i class="ph ph-chart-line" aria-hidden="true"></i> Выручка по месяцам</div><div class="card-subtitle">тыс. ₽ · 2025 vs 2026</div></div>
+        <div style="display:flex;gap:12px;align-items:center; font-size:12px; font-weight:700;"><span style="display:inline-flex;align-items:center;gap:6px;"><span style="width:10px;height:10px;border-radius:50%;background:#FFE4CC;border:1px solid #FDBA74;"></span> 2025</span><span style="display:inline-flex;align-items:center;gap:6px;"><span style="width:10px;height:10px;border-radius:50%;background:#FF6B00;"></span> 2026</span></div>
+      </div>
+      <div class="chart-wrap"><canvas id="chartMonthly" aria-label="График выручки по месяцам" role="img"></canvas></div>
+      <div class="small muted" style="margin-top:8px;display:flex;align-items:center;gap:6px;"><i class="ph ph-info" aria-hidden="true" title="Выручка за месяц — сумма продаж за этот месяц (цена × количество)" style="cursor:help;"></i> Выручка за месяц = сумма продаж за этот месяц (цена × кол-во). Доступны ближайшие 2-3 месяца (прогноз).</div>
+    </div>
+    <div class="card">
+      <div class="card-header"><div class="card-title"><i class="ph ph-squares-four" aria-hidden="true"></i> Категории</div><span class="badge badge-orange"><i class="ph ph-storefront" aria-hidden="true"></i> Galamart</span></div>
+      <div id="catBars" class="category-bar"></div>
+      <div class="small muted" style="margin-top:12px;display:flex;align-items:center;gap:6px;"><i class="ph ph-info" aria-hidden="true" title="Топ категории — лидеры продаж сети" style="cursor:help;"></i> Бытовая химия, Посуда, Текстиль — лидеры продаж сети</div>
+    </div>
+  </div>
+
+  <div class="grid-3" style="margin-top:16px;">
+    <div class="card">
+      <div class="card-header"><div><div class="card-title"><i class="ph ph-trophy" aria-hidden="true"></i> ТОП продаж</div><div class="card-subtitle">по скорости сбыта · Динамика</div></div><span class="small muted">ТОП-20</span></div>
+      <div class="small muted" style="margin-bottom:8px;display:flex;align-items:center;gap:6px;"><i class="ph ph-info" aria-hidden="true" title="Информация" style="cursor:help;"></i> <span title="Рост = продажи растут >5%, Падение = падают <-5%, Стабильно = ±5%">Динамика: Рост / Падение / Стабильно (подсказка при наведении)</span></div>
+      <div class="table-wrap"><table><thead><tr><th>SKU / Товар</th><th>Остаток</th><th>Дней</th><th>Динамика <i class="ph ph-info" title="Рост — тренд +5% к прошлому периоду, Падение — -5%, Стабильно — в пределах ±5%"></i></th></tr></thead><tbody id="topTable"></tbody></table></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><div><div class="card-title"><i class="ph ph-warning" aria-hidden="true"></i> Красная зона <i class="ph ph-info" style="color:var(--text-dim);cursor:help;" title="Красная зона: товар не продавался >30 дней ИЛИ остаток ≤5 шт. ИЛИ покрытие <7 дней. Минус = недостача на складе (сколько не хватает до нормы на 2 недели)"></i></div><div class="card-subtitle">Критический дефицит · &gt;30 дней без продаж</div></div><span class="badge badge-red"><i class="ph ph-fire" aria-hidden="true"></i> Срочно</span></div>
+      <div class="small muted" style="margin-bottom:8px;display:flex;align-items:center;gap:6px;"><i class="ph ph-info" aria-hidden="true" title="Минус — недостача на складе, сколько не хватает до нормы" style="cursor:help;"></i> Минус = Недостача на складе (не хватает до нормы)</div>
+      <div id="redZone"></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><div><div class="card-title"><i class="ph ph-archive" aria-hidden="true"></i> Залежки <i class="ph ph-info" style="color:var(--text-dim);cursor:help;" title="Залежка = товар не продавался более 30 дней. Данные из той же таблицы sales, что и история продаж. Если продажа была <30 дней назад — не показывается здесь."></i></div><div class="card-subtitle">Нет продаж &gt; 30 дней · из sales</div></div></div>
+      <div id="staleList"></div>
+    </div>
+  </div>
+</section>
+
+<!-- КАБИНЕТ ДИРЕКТОРА -->
+<section id="tab-director" class="tab-pane" role="tabpanel">
+  <div style="display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; margin-bottom:16px;">
+    <div>
+      <div style="font-family:Rubik,sans-serif;font-size:22px;font-weight:700;display:flex;align-items:center;gap:10px;"><i class="ph ph-user-gear" style="color:#FF6B00;"></i> Кабинет директора</div>
+      <div class="small muted" style="margin-top:4px;">Магазин Галамарт · Новосибирск, Героев Революции 72 · Смена: 08:00—20:00 · Директор: вы</div>
+    </div>
+    <div style="display:flex; gap:8px;">
+      <button class="btn btn-ghost" onclick="document.querySelector('[data-tab=analytics]').click()"><i class="ph ph-chart-bar" aria-hidden="true"></i> К аналитике</button>
+      <button class="btn btn-orange" onclick="document.querySelector('[data-tab=order]').click()"><i class="ph ph-shopping-cart" aria-hidden="true"></i> Сформировать заказ</button>
+    </div>
+  </div>
+
+  <!-- KPI директора -->
+  <div class="kpi-grid">
+    <div class="kpi-card"><div class="kpi-label"><i class="ph ph-target" aria-hidden="true"></i> План месяца <i class="ph ph-info" style="cursor:help;" title="План выручки на месяц — задаётся вручную. Выполнение = Факт / План ×100%"></i></div><div class="kpi-value" id="dirPlanValue">1 250 000 ₽</div><div class="kpi-delta up" id="dirPlanPct" style="background:#FFF1E6;color:#9A3412;"><i class="ph ph-trend-up" aria-hidden="true"></i> 78% выполнено</div></div>
+    <div class="kpi-card"><div class="kpi-label"><i class="ph ph-currency-rub" aria-hidden="true"></i> Выручка <i class="ph ph-info" style="cursor:help;" title="Выручка — та же что в Аналитике: Σ(price × total) за 4 недели"></i></div><div class="kpi-value" id="dirRevenueToday">—</div><div class="kpi-delta up" id="dirRevDelta"><i class="ph ph-trend-up" aria-hidden="true"></i> +4.2% к вч.</div></div>
+    <div class="kpi-card"><div class="kpi-label"><i class="ph ph-users" aria-hidden="true"></i> Трафик / Конверсия <i class="ph ph-info" style="cursor:help;" title="Трафик — условные посетители, конверсия — % купивших"></i></div><div class="kpi-value" id="dirTraffic">342 чел.</div><div class="kpi-delta up"><i class="ph ph-shopping-bag" aria-hidden="true"></i> 32% конверсия</div></div>
+    <div class="kpi-card"><div class="kpi-label"><i class="ph ph-receipt" aria-hidden="true"></i> Средний чек <i class="ph ph-info" style="cursor:help;" title="Средний чек = Общая выручка / Количество чеков — единая формула для аналитики и кабинета"></i></div><div class="kpi-value" id="dirAvgCheck">—</div><div class="kpi-delta" id="dirAvgDelta"><i class="ph ph-info" aria-hidden="true" title="Информация" style="cursor:help;"></i> —</div></div>
+  </div>
+
+  <div class="grid-2" style="margin-top:16px;">
+    <!-- Задачи — добавляемые директором + от офиса/программы -->
+    <div class="card">
+      <div class="card-header"><div class="card-title"><i class="ph ph-check-square" aria-hidden="true"></i> Задачи на сегодня</div><div class="flex" style="gap:8px;align-items:center;"><span class="badge badge-orange" id="tasksCount">—</span><button class="btn btn-ghost btn-sm" style="padding:4px 8px;font-size:11px;" onclick="testTime()" title="Проверить удаление выполненных задач после 20:00"><i class="ph ph-clock" aria-hidden="true"></i> 20:00</button></div></div>
+      <div style="display:flex; gap:8px; margin-bottom:12px;">
+        <input id="newTaskInput" class="form-control" placeholder="Добавить свою задачу..." style="flex:1;">
+        <button class="btn btn-orange" onclick="addTask()"><i class="ph ph-plus" aria-hidden="true"></i> Добавить</button>
+      </div>
+      <div class="small muted" style="margin-bottom:8px;display:flex;gap:8px;flex-wrap:wrap;">
+        <span style="display:inline-flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;background:#FF6B00;border-radius:50%;"></span> Офис</span>
+        <span style="display:inline-flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;background:#16A34A;border-radius:50%;"></span> Программа</span>
+        <span style="display:inline-flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;background:#64748B;border-radius:50%;"></span> Мои</span>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:10px;" id="dirTasks"></div>
+      <div class="small muted" style="margin-top:10px;display:flex;align-items:center;gap:6px;"><i class="ph ph-info" aria-hidden="true" title="Выполненные задачи автоматически убираются после 20:00" style="cursor:help;"></i> Выполненные задачи автоматически убираются после 20:00</div>
+    </div>
+    <!-- Уведомления + Сотрудники -->
+    <div style="display:flex; flex-direction:column; gap:16px;">
+      <div class="card">
+        <div class="card-header"><div class="card-title"><i class="ph ph-bell" aria-hidden="true"></i> Уведомления от офиса</div><span class="badge badge-red"><i class="ph ph-fire" aria-hidden="true"></i> 2 новых</span></div>
+        <div style="display:flex; flex-direction:column; gap:10px;">
+          <div style="padding:12px;border:1px solid #FDBA74;background:#FFF7ED;border-radius:12px;">
+            <div style="font-weight:800;display:flex;align-items:center;gap:6px;"><i class="ph ph-megaphone" style="color:#FF6B00;"></i> Новая листовка с 01.09 — Посуда -25%</div>
+            <div class="small muted" style="margin-top:4px;">12 товаров. Рекомендуем увеличить заказ на 40-50%. Поставка — 30.08.</div>
+            <button class="btn btn-sm btn-orange" style="margin-top:8px;" onclick="document.querySelector('[data-tab=promo]').click()"><i class="ph ph-eye" aria-hidden="true"></i> Посмотреть</button>
+          </div>
+          <div style="padding:12px;border:1px solid var(--border);border-radius:12px;">
+            <div style="font-weight:700;display:flex;align-items:center;gap:6px;"><i class="ph ph-warning" style="color:#EA580C;"></i> Критический остаток: 4 SKU</div>
+            <div class="small muted" style="margin-top:4px;">Порошок, губки, салфетки — осталось &lt; 3 дней. Срочно закажите.</div>
+            <button class="btn btn-sm" style="margin-top:8px;" onclick="document.querySelector('[data-tab=order]').click()"><i class="ph ph-shopping-cart" aria-hidden="true"></i> К заказу</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="grid-2" style="margin-top:16px;">
+    <div class="card">
+      <div class="card-header"><div class="card-title"><i class="ph ph-truck" aria-hidden="true"></i> Поставки</div></div>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <div style="display:flex;justify-content:space-between;padding:10px;border:1px solid var(--border);border-radius:10px;"><span style="font-weight:700;">Сегодня 08:30</span><span class="badge badge-orange">Ожидается</span></div>
+        <div style="display:flex;justify-content:space-between;padding:10px;border:1px solid var(--border);border-radius:10px;"><span>Вчера 14:20</span><span class="badge badge-green">Принято</span></div>
+        <div class="small muted" style="display:flex;align-items:center;gap:6px;"><i class="ph ph-info" aria-hidden="true" title="Заказы поставщикам отправляются ежедневно в 18:00" style="cursor:help;"></i> Заказы отправляются поставщикам в 18:00</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header"><div class="card-title"><i class="ph ph-target" aria-hidden="true"></i> План магазина на месяц <i class="ph ph-info" title="План выручки на месяц — можно редактировать вручную. Выполнение плана считается как Факт/План*100%"></i></div><span class="badge badge-orange"><i class="ph ph-pencil-simple" aria-hidden="true"></i> Редактируется</span></div>
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          <label class="small muted" style="font-weight:700;">План выручки на месяц:</label>
+          <input id="planInput" type="number" class="form-control" style="width:160px;" placeholder="1250000">
+          <button class="btn btn-orange btn-sm" onclick="savePlan()"><i class="ph ph-floppy-disk" aria-hidden="true"></i> Сохранить</button>
+          <span id="planStatus" class="small" style="font-weight:700;color:var(--success);"></span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;"><span class="small muted" id="planLabel">План: 1 250 000 ₽</span><span style="font-weight:800;" id="planPct">78% выполнено</span></div>
+        <div class="bar-bg" style="height:10px;"><div class="bar-fg" id="planBar" style="width:78%"></div></div>
+        <div style="display:flex;justify-content:space-between;" class="small"><span id="planFact">Факт: 975 000 ₽</span><span id="planRemain" style="color:var(--success);font-weight:700;">Осталось 275 000 ₽</span></div>
+        <div class="small muted" style="display:flex;align-items:center;gap:6px;"><i class="ph ph-info" aria-hidden="true" title="Выполнение плана — Факт / План ×100%" style="cursor:help;"></i> <span id="planExec">Выполнение плана: 78% · Осталось 275 000 ₽</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ORDER -->
+<section id="tab-order" class="tab-pane" role="tabpanel">
+  <div style="background: linear-gradient(135deg, #FFF7ED 0%, #FFEDD5 100%); border:1px solid #FDBA74; border-radius:16px; padding:14px 18px; display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; margin-bottom:12px;">
+    <div style="display:flex; gap:12px; align-items:center;">
+      <div style="width:44px;height:44px;background:#FF6B00;border-radius:12px;display:flex;align-items:center;justify-content:center;color:white;box-shadow:0 4px 12px rgba(255,107,0,0.3);"><i class="ph ph-magic-wand" style="font-size:22px;"></i></div>
+      <div>
+        <div style="font-family:Rubik,sans-serif;font-weight:700;font-size:15px;">Автозаказ</div>
+        <div class="small muted" style="margin-top:2px;">Учитывает <b>спрос 4 недели</b>, <b>ближайшие листовки (+50%)</b> и критический остаток.</div>
+      </div>
+    </div>
+    <div style="display:flex; gap:8px; align-items:center;">
+      <button class="btn btn-orange" style="padding:12px 20px;font-size:14px;" onclick="autoOrder()"><i class="ph ph-sparkle" aria-hidden="true"></i> Выставить автозаказ</button>
+    </div>
+  </div>
+  <div class="filters">
+    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:700;"><input type="checkbox" id="onlyNeed" checked style="accent-color:#FF6B00;width:16px;height:16px;"> Только к заказу</label>
+    <select id="orderCategory" class="form-control" style="width:180px;" aria-label="Категория">
+      <option value="Все">Все категории</option>
+            <option value="Бытовая химия">Бытовая химия</option>
+      <option value="Игрушки">Игрушки</option>
+      <option value="Канцтовары">Канцтовары</option>
+      <option value="Посуда">Посуда</option>
+      <option value="Текстиль">Текстиль</option>
+    </select>
+    <div class="search-wrap" style="max-width:380px;"><i class="ph ph-magnifying-glass" aria-hidden="true"></i><input id="orderSearch" placeholder="Поиск по SKU или наименованию" aria-label="Поиск"></div>
+    <button class="btn" onclick="loadOrder()"><i class="ph ph-arrows-clockwise" aria-hidden="true"></i> Пересчитать</button>
+  </div>
+  <div id="orderWarn" class="alert alert-warn hidden"><i class="ph ph-warning" aria-hidden="true"></i> <span>—</span></div>
+  <div id="orderDeviation" class="small" style="color:#9A3412;margin:8px 0;font-weight:600;"></div>
+  <div class="small muted" style="margin:8px 0;display:flex;align-items:center;gap:6px;"><i class="ph ph-calculator" aria-hidden="true"></i> Расчетное количество = (Средние продажи за неделю × Коэффициент запаса) - Текущий остаток · Наведите на <b>Расч.</b> для формулы</div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>SKU</th><th>Наименование</th><th>Поставщик</th><th>Остаток</th><th>Спрос</th><th title="Расчетное количество = (Средние продажи за неделю × Коэффициент запаса) - Текущий остаток">Расч. <i class="ph ph-info" aria-hidden="true" title="Информация" style="cursor:help;"></i></th><th>Предл.</th><th>Цена</th><th>Сумма</th><th>Готово</th></tr></thead>
+      <tbody id="orderTable"></tbody>
+    </table>
+  </div>
+  <div class="flex" style="justify-content:center;margin-top:12px;gap:8px;align-items:center;">
+    <button class="btn btn-ghost btn-sm" id="orderMoreBtn" onclick="loadOrderMore()" style="display:none;"><i class="ph ph-plus" aria-hidden="true"></i> Продолжить список — ещё 50</button>
+    <span class="small muted" id="orderTotalCount"></span>
+  </div>
+  <div class="totals-bar" style="margin-top:16px;">
+    <div class="totals-left">
+      <div><div class="totals-label">К заказу</div><div class="totals-value" id="orderTotalSku">—</div></div>
+      <div><div class="totals-label">Сумма заказа</div><div class="totals-value orange" id="orderTotalSum">—</div></div>
+    </div>
+    <div class="flex">
+      <button class="btn" onclick="loadOrder()"><i class="ph ph-arrows-clockwise" aria-hidden="true"></i> Пересчитать</button>
+      <button class="btn btn-orange" onclick="placeOrder()" style="padding:12px 20px;font-size:14px;box-shadow:0 4px 12px rgba(255,107,0,0.3);"><i class="ph ph-paper-plane-tilt" aria-hidden="true"></i> Заказать</button>
+      <button class="btn btn-ghost" onclick="saveOrder()" title="Сохранить черновик заказа"><i class="ph ph-floppy-disk" aria-hidden="true"></i> Сохранить</button>
+      <button class="btn" onclick="exportOrderPDF()"><i class="ph ph-file-pdf" aria-hidden="true"></i> PDF</button>
+      <button class="btn" onclick="exportOrderExcel()"><i class="ph ph-file-xls" aria-hidden="true"></i> Excel</button>
+    </div>
+  </div>
+  <div class="small muted" style="margin-top:8px;display:flex;align-items:center;gap:6px;"><i class="ph ph-hand-pointing" aria-hidden="true"></i> Клик по количеству — изменить (двойной клик в десктопе)</div>
+</section>
+
+<!-- PROMO — ЛИСТОВКИ ОТ ЦЕНТРАЛЬНОГО ОФИСА (только чтение для директора) -->
+<section id="tab-promo" class="tab-pane" role="tabpanel">
+  <div class="form-card" style="background: linear-gradient(135deg, #FFF7ED 0%, #FFFFFF 100%); border-color: #FDBA74;">
+    <div style="display:flex; gap:16px; align-items:flex-start; flex-wrap:wrap;">
+      <div style="width:48px;height:48px;background:#FF6B00;border-radius:12px;display:flex;align-items:center;justify-content:center;color:white;flex-shrink:0;"><i class="ph ph-megaphone" style="font-size:22px;"></i></div>
+      <div style="flex:1; min-width:260px;">
+        <div class="card-title" style="margin:0;"><i class="ph ph-info" aria-hidden="true" title="Листовки формирует центральный офис, директор только видит" style="cursor:help;"></i> Листовки приходят от компании</div>
+        <div class="small" style="color:var(--text-muted); margin-top:6px; line-height:1.5;">
+          Директор <b>не создаёт</b> листовки — их формируют в центральном офисе Галамарт. Вы только <b>видите</b> предстоящие акции и получаете рекомендацию <span style="color:#FF6B00;font-weight:800;">«закажи +50%»</span> в разделе «Заказ». Отмеченные товары автоматически увеличат предложенное количество.
+        </div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:12px;">
+          <span class="badge badge-orange"><i class="ph ph-eye" aria-hidden="true"></i> Только просмотр</span>
+          <span class="badge badge-gray"><i class="ph ph-buildings" aria-hidden="true"></i> Источник: Центральный офис</span>
+          <span class="badge badge-green"><i class="ph ph-trend-up" aria-hidden="true"></i> Авто +50% к заказу</span>
+        </div>
+      </div>
+      <div style="background:white;border:1px solid var(--border);border-radius:12px;padding:12px 16px; min-width:180px;">
+        <div style="font-size:11px;font-weight:800;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;">Ближайшая листовка</div>
+        <div id="nextLeafletDate" style="font-family:Rubik,sans-serif;font-weight:700;font-size:15px;margin-top:4px;">—</div>
+        <div id="nextLeafletName" class="small muted">Загрузка...</div>
+      </div>
+    </div>
+  </div>
+  <div class="filters">
+    <label style="font-weight:700;display:flex;align-items:center;gap:6px;"><i class="ph ph-funnel" aria-hidden="true"></i> Показать:</label>
+    <select id="promoFilter" class="form-control" style="width:200px;" onchange="loadPromos()">
+      <option>Все листовки</option><option>Активные сейчас</option><option>Будущие (к заказу)</option><option>Завершённые</option>
+    </select>
+    <button class="btn btn-ghost" onclick="loadPromos()"><i class="ph ph-arrows-clockwise" aria-hidden="true"></i> Обновить</button>
+    <span class="small muted" style="margin-left:auto;display:flex;align-items:center;gap:6px;"><i class="ph ph-lock" aria-hidden="true"></i> Редактирование — только офис</span>
+  </div>
+  <div class="table-wrap"><table><thead><tr><th><i class="ph ph-megaphone" aria-hidden="true"></i> Листовка</th><th>Период</th><th>Скидка</th><th>Товары</th><th>Статус</th><th>Рекомендация</th></tr></thead><tbody id="promoTable"></tbody></table></div>
+  <div class="small muted" style="margin-top:10px;display:flex;align-items:center;gap:6px;"><i class="ph ph-lightbulb" aria-hidden="true"></i> Товары из будущих листовок подсвечены в «Заказе» жёлтым и уже увеличены на 50% — просто подтвердите количество.</div>
+</section>
+
+<!-- PRODUCTS -->
+<section id="tab-products" class="tab-pane" role="tabpanel">
+  <div class="filters">
+    <div class="search-wrap" style="flex:1;"><i class="ph ph-magnifying-glass" aria-hidden="true"></i><input id="prodSearch" placeholder="Поиск товара — например, Порошок, GM-1053... (регистронезависимо)" aria-label="Поиск товара"></div>
+    <select id="prodCategory" class="form-control" style="width:180px;" aria-label="Категория">
+      <option value="Все">Все категории</option>
+            <option value="Бытовая химия">Бытовая химия</option>
+      <option value="Игрушки">Игрушки</option>
+      <option value="Канцтовары">Канцтовары</option>
+      <option value="Посуда">Посуда</option>
+      <option value="Текстиль">Текстиль</option>
+    </select>
+    <label style="display:flex;align-items:center;gap:6px;font-weight:700;white-space:nowrap;"><input type="checkbox" id="onlyActiveCheck" style="accent-color:#FF6B00;width:16px;height:16px;"> <span title="Неактивный — товар снят с продажи, но остался в базе для истории">Только активные</span> <i class="ph ph-info" title="Неактивный — товар снят с продажи, но остался в базе для истории. Фильтр скрывает неактивные."></i></label>
+    <span id="prodCount" class="small muted" style="font-weight:700;"></span>
+  </div>
+  <!-- Управление товарами — массовое удаление по категориям -->
+  <div class="form-card" style="margin-bottom:12px;background: linear-gradient(135deg, #FFF7ED 0%, #FFFFFF 100%); border-color:#FDBA74;">
+    <div class="flex-between"><div class="card-title"><i class="ph ph-trash" aria-hidden="true"></i> Управление товарами — массовое удаление <i class="ph ph-info" style="color:var(--text-dim);" title="Удалите товары, не соответствующие тематике магазина (например, все Игрушки, если магазин продуктовый). Действие необратимо."></i></div><span class="small muted">Очистка базы данных</span></div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:12px;">
+      <select id="bulkCategory" class="form-control" style="width:200px;">
+              <option value="Бытовая химия">Бытовая химия</option>
+      <option value="Игрушки">Игрушки</option>
+      <option value="Канцтовары">Канцтовары</option>
+      <option value="Посуда">Посуда</option>
+      <option value="Текстиль">Текстиль</option>
+      </select>
+      <button class="btn btn-danger" onclick="bulkDeleteCategory()"><i class="ph ph-trash" aria-hidden="true"></i> Удалить все товары категории</button>
+      <span id="bulkStatus" class="small" style="font-weight:700;"></span>
+    </div>
+    <div class="small muted" style="margin-top:8px;"><i class="ph ph-warning" aria-hidden="true"></i> Внимание: удалит все товары выбранной категории безвозвратно. Используйте для очистки нерелевантных товаров.</div>
+  </div>
+  <!-- Galamart product fill — только непродовольственные -->
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+    <span class="pill-category"><i class="ph ph-spray-bottle" aria-hidden="true"></i> Бытовая химия</span>
+    <span class="pill-category"><i class="ph ph-puzzle-piece" aria-hidden="true"></i> Игрушки</span>
+    <span class="pill-category"><i class="ph ph-pencil" aria-hidden="true"></i> Канцтовары</span>
+    <span class="pill-category"><i class="ph ph-cooking-pot" aria-hidden="true"></i> Посуда</span>
+    <span class="pill-category"><i class="ph ph-t-shirt" aria-hidden="true"></i> Текстиль</span>
+  </div>
+  <div class="table-wrap"><table><thead><tr><th>SKU</th><th>Наименование</th><th>Категория</th><th>Цена</th><th>Остаток</th><th>Статус <i class="ph ph-info" title="Неактивный — товар снят с продажи, но остался в базе для истории"></i></th><th></th></tr></thead><tbody id="prodTable"></tbody></table></div>
+  <div class="flex" style="justify-content:center;margin-top:12px;gap:8px;align-items:center;">
+    <button class="btn btn-ghost btn-sm" id="prodMoreBtn" onclick="loadProductsMore()" style="display:none;"><i class="ph ph-plus" aria-hidden="true"></i> Продолжить список — ещё 50</button>
+    <span class="small muted" id="prodTotalCount"></span>
+  </div>
+  <div class="form-card" style="margin-top:16px;">
+    <div class="flex-between"><div class="card-title"><i class="ph ph-pencil-simple" aria-hidden="true"></i> Редактирование выбранного товара (клик по строке)</div></div>
+    <div class="form-grid" style="margin-top:16px;">
+      <div class="form-group"><label><i class="ph ph-text-t" aria-hidden="true"></i> Название</label><input id="editName" class="form-control"></div>
+      <div class="form-group"><label><i class="ph ph-squares-four" aria-hidden="true"></i> Категория</label><select id="editCat" class="form-control">      <option value="Бытовая химия">Бытовая химия</option>
+      <option value="Игрушки">Игрушки</option>
+      <option value="Канцтовары">Канцтовары</option>
+      <option value="Посуда">Посуда</option>
+      <option value="Текстиль">Текстиль</option></select></div>
+      <div class="form-group"><label><i class="ph ph-currency-rub" aria-hidden="true"></i> Цена</label><input id="editPrice" class="form-control" type="number" step="0.01"></div>
+      <div class="form-group"><label><i class="ph ph-stack" aria-hidden="true"></i> Остаток</label><input id="editStock" class="form-control" type="number"></div>
+      <div class="form-group"><label><i class="ph ph-toggle-left" aria-hidden="true"></i> Статус <i class="ph ph-info" title="Неактивный — товар снят с продажи, но остался в базе для истории"></i></label><select id="editActive" class="form-control"><option value="1">Активный</option><option value="0">Неактивный</option></select></div>
+      <div class="form-group"><label>Нед.1</label><input id="editW1" class="form-control" type="number"></div>
+      <div class="form-group"><label>Нед.2</label><input id="editW2" class="form-control" type="number"></div>
+      <div class="form-group"><label>Нед.3</label><input id="editW3" class="form-control" type="number"></div>
+      <div class="form-group"><label>Нед.4</label><input id="editW4" class="form-control" type="number"></div>
+    </div>
+    <div class="flex" style="margin-top:16px;flex-wrap:wrap;">
+      <button class="btn btn-orange" onclick="saveEdit()"><i class="ph ph-floppy-disk" aria-hidden="true"></i> Сохранить изменения</button>
+      <button class="btn btn-danger" onclick="deleteProduct()"><i class="ph ph-trash" aria-hidden="true"></i> Удалить товар</button>
+      <button class="btn" onclick="showHistory()"><i class="ph ph-chart-line" aria-hidden="true"></i> История продаж</button>
+      <span id="editStatus" class="small" style="color:var(--success);margin-left:8px;font-weight:700;"></span>
+    </div>
+  </div>
+</section>
+
+<!-- HISTORY -->
+<section id="tab-history" class="tab-pane" role="tabpanel">
+  <div class="card">
+    <div class="card-header"><div class="card-title"><i class="ph ph-clock-counter-clockwise" aria-hidden="true"></i> История заказов</div><button class="btn btn-ghost" onclick="loadHistory()"><i class="ph ph-arrows-clockwise" aria-hidden="true"></i> Обновить</button></div>
+    <div class="table-wrap"><table><thead><tr><th>№ Заказа</th><th>Дата</th><th>Пользователь</th><th>Позиций</th><th>Сумма</th><th>Статус</th><th></th></tr></thead><tbody id="histTable"></tbody></table></div>
+  </div>
+  <div class="grid-2" style="margin-top:16px;">
+    <div class="card"><div class="card-title"><i class="ph ph-list-bullets" aria-hidden="true"></i> Состав заказа</div><div class="table-wrap" style="margin-top:12px;"><table><thead><tr><th>SKU</th><th>Название</th><th>Кол-во</th><th>Цена</th><th>Остаток</th><th>Ср./нед.</th></tr></thead><tbody id="detailTable"></tbody></table></div></div>
+    <div class="card"><div class="card-title"><i class="ph ph-scales" aria-hidden="true"></i> Анализ точности: заказано vs продано</div><div class="table-wrap" style="margin-top:12px;"><table><thead><tr><th>SKU</th><th>Название</th><th>Заказ.</th><th>Продано</th><th>Ср./нед.</th><th>Статус</th></tr></thead><tbody id="accTable"></tbody></table></div>
+      <div class="flex" style="margin-top:12px;flex-wrap:wrap;"><button class="btn btn-danger btn-sm" onclick="deleteOrder()"><i class="ph ph-trash" aria-hidden="true"></i> Удалить заказ</button><button class="btn btn-sm" onclick="loadAccuracy()"><i class="ph ph-calculator" aria-hidden="true"></i> Пересчитать точность</button><button class="btn btn-orange btn-sm" onclick="exportAccuracyPDF()"><i class="ph ph-file-pdf" aria-hidden="true"></i> PDF: Заказано vs Продано</button><span id="accInfo" class="small muted" style="margin-left:auto;font-weight:600;"></span></div>
+    </div>
+  </div>
+</section>
+
+<div class="modal-overlay" id="qtyModal" onclick="if(event.target===this) closeQtyModal()" role="dialog" aria-modal="true" aria-labelledby="qtyTitle">
+  <div class="modal">
+    <h3 id="qtyTitle"><i class="ph ph-pencil-simple" aria-hidden="true"></i> Количество</h3>
+    <div class="form-group"><label><i class="ph ph-hash" aria-hidden="true"></i> Количество к заказу</label><input id="qtyInput" type="number" class="form-control" style="text-align:center;font-size:18px;font-weight:700;"></div>
+    <div class="flex" style="justify-content:flex-end;margin-top:16px;"><button class="btn btn-ghost" onclick="closeQtyModal()">Отмена</button><button class="btn btn-orange" onclick="saveQty()"><i class="ph ph-check" aria-hidden="true"></i> Сохранить</button></div>
+  </div>
+</div>
+
+<!-- Модалка редактирования товара — открывается сразу по клику на карандаш, без пролистывания -->
+<div class="modal-overlay" id="productEditModal" onclick="if(event.target===this) closeProductEditModal()" role="dialog" aria-modal="true" aria-labelledby="productEditTitle">
+  <div class="modal" style="max-width:560px;width:95%;max-height:90vh;overflow-y:auto;">
+    <h3 id="productEditTitle"><i class="ph ph-pencil-simple" aria-hidden="true"></i> Редактирование товара</h3>
+    <div class="small muted" id="productEditSku" style="margin-bottom:12px;font-weight:700;"></div>
+    <div class="form-grid">
+      <div class="form-group"><label><i class="ph ph-text-t" aria-hidden="true"></i> Название</label><input id="modalEditName" class="form-control"></div>
+      <div class="form-group"><label><i class="ph ph-squares-four" aria-hidden="true"></i> Категория</label><select id="modalEditCat" class="form-control">      <option value="Бытовая химия">Бытовая химия</option>
+      <option value="Игрушки">Игрушки</option>
+      <option value="Канцтовары">Канцтовары</option>
+      <option value="Посуда">Посуда</option>
+      <option value="Текстиль">Текстиль</option></select></div>
+      <div class="form-group"><label><i class="ph ph-currency-rub" aria-hidden="true"></i> Цена</label><input id="modalEditPrice" class="form-control" type="number" step="0.01"></div>
+      <div class="form-group"><label><i class="ph ph-stack" aria-hidden="true"></i> Остаток</label><input id="modalEditStock" class="form-control" type="number"></div>
+      <div class="form-group"><label><i class="ph ph-toggle-left" aria-hidden="true"></i> Статус</label><select id="modalEditActive" class="form-control"><option value="1">Активный</option><option value="0">Неактивный</option></select></div>
+      <div class="form-group"><label>Нед.1</label><input id="modalEditW1" class="form-control" type="number"></div>
+      <div class="form-group"><label>Нед.2</label><input id="modalEditW2" class="form-control" type="number"></div>
+      <div class="form-group"><label>Нед.3</label><input id="modalEditW3" class="form-control" type="number"></div>
+      <div class="form-group"><label>Нед.4</label><input id="modalEditW4" class="form-control" type="number"></div>
+    </div>
+    <div class="flex" style="margin-top:16px;flex-wrap:wrap;justify-content:flex-end;">
+      <button class="btn btn-ghost" onclick="closeProductEditModal()">Отмена</button>
+      <button class="btn btn-danger" onclick="deleteProductModal()"><i class="ph ph-trash" aria-hidden="true"></i> Удалить</button>
+      <button class="btn btn-orange" onclick="saveProductModal()"><i class="ph ph-floppy-disk" aria-hidden="true"></i> Сохранить</button>
+    </div>
+    <div id="modalEditStatus" class="small" style="color:var(--success);margin-top:8px;font-weight:700;"></div>
+  </div>
+</div>
+
+<!-- Модалка перепроверки заказа — показывает много/мало -->
+<div class="modal-overlay" id="orderVerifyModal" onclick="if(event.target===this) closeOrderVerifyModal()" role="dialog" aria-modal="true">
+  <div class="modal" style="max-width:640px;width:95%;max-height:85vh;overflow-y:auto;">
+    <h3><i class="ph ph-warning" style="color:#EA580C;"></i> Перепроверьте заказ</h3>
+    <div class="small muted" style="margin-bottom:12px;">Система нашла позиции, которые выглядят подозрительно. Проверьте и нажмите «Все верно».</div>
+    <div id="orderVerifyList" style="display:flex;flex-direction:column;gap:8px;max-height:340px;overflow-y:auto;"></div>
+    <div class="flex" style="margin-top:16px;justify-content:flex-end;gap:8px;">
+      <button class="btn btn-ghost" onclick="closeOrderVerifyModal()">Назад к заказу</button>
+      <button class="btn btn-orange" onclick="confirmOrderVerify()"><i class="ph ph-check" aria-hidden="true"></i> Все верно</button>
+    </div>
+  </div>
+</div>
+
+<!-- Техподдержка — глобально внизу (перенесено из всех вкладок) -->
+<div class="card" style="margin:24px auto 0;max-width:1400px;">
+  <div class="card-header"><div class="card-title"><i class="ph ph-headset" aria-hidden="true"></i> Техподдержка</div><span class="badge badge-orange">24/7</span></div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+    <div style="display:flex;gap:12px;align-items:center;padding:14px;background:#FFF7ED;border:1px solid #FDBA74;border-radius:12px;">
+      <div style="width:40px;height:40px;background:#FF6B00;border-radius:10px;display:flex;align-items:center;justify-content:center;color:white;"><i class="ph ph-phone" style="font-size:20px;"></i></div>
+      <div><div style="font-size:11px;font-weight:800;color:var(--text-muted);text-transform:uppercase;">Телефон</div><div style="font-family:Rubik,sans-serif;font-weight:700;font-size:15px;"><a href="tel:+78005551488" style="color:var(--text-strong);text-decoration:none;">8 800 555-14-88</a></div><div class="small muted">Круглосуточно</div></div>
+    </div>
+    <div style="display:flex;gap:12px;align-items:center;padding:14px;background:#FFF7ED;border:1px solid #FDBA74;border-radius:12px;">
+      <div style="width:40px;height:40px;background:#FF6B00;border-radius:10px;display:flex;align-items:center;justify-content:center;color:white;"><i class="ph ph-envelope" style="font-size:20px;"></i></div>
+      <div><div style="font-size:11px;font-weight:800;color:var(--text-muted);text-transform:uppercase;">Почта</div><div style="font-family:Rubik,sans-serif;font-weight:700;font-size:15px;"><a href="mailto:support@galamart.ru" style="color:var(--text-strong);text-decoration:none;">support@galamart.ru</a></div><div class="small muted">Ответ за 15 минут</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- Кнопка-стрелка наверх для длинных списков -->
+<button id="scrollTopBtn" aria-label="Наверх" title="Наверх" style="position:fixed;bottom:24px;right:24px;width:44px;height:44px;border-radius:50%;background:#FF6B00;color:white;border:none;box-shadow:0 4px 12px rgba(255,107,0,0.4);display:none;align-items:center;justify-content:center;cursor:pointer;z-index:90;font-size:20px;"><i class="ph ph-arrow-up" aria-hidden="true"></i></button>
+
+<footer class="app-footer"><strong style="font-family:'Rubik',sans-serif;">GALAMART</strong> — магазин постоянных распродаж · <span id="footerCount"></span> · <span style="display:inline-flex;align-items:center;gap:4px;"><i class="ph ph-storefront" aria-hidden="true"></i> Посуда • Текстиль • Хозтовары</span></footer>
+<script src="static/js/main.js"></script>
+</body>
+</html>
